@@ -15,6 +15,8 @@ const DEFAULT_PORT = 42100;
 let _process = null;
 let _port = DEFAULT_PORT;
 let _csrfToken = '';
+let _startedAt = null;
+let _restartCount = 0;
 
 /** Check if something is already listening on a port. */
 function isPortInUse(port) {
@@ -54,6 +56,7 @@ export async function startLanguageServer(opts = {}) {
   // Check if language server is already running on this port (from a previous PM2 restart)
   if (await isPortInUse(_port)) {
     log.info(`Language server already running on port ${_port} (reusing existing instance)`);
+    if (!_startedAt) _startedAt = Date.now();
     return { port: _port, csrfToken: _csrfToken };
   }
 
@@ -70,6 +73,8 @@ export async function startLanguageServer(opts = {}) {
     '--detect_proxy=false',
   ];
 
+  _startedAt = Date.now();
+  _restartCount++;
   log.info(`Starting language server: ${binary}`);
   log.info(`  port=${_port} csrf=${_csrfToken.slice(0, 8)}...`);
   log.info(`  api_server_url=${apiServerUrl}`);
@@ -124,6 +129,17 @@ export function stopLanguageServer() {
  */
 export function isLanguageServerRunning() {
   return _process !== null && !_process.killed;
+}
+
+/** Get language server status for dashboard. */
+export function getLsStatus() {
+  return {
+    running: isLanguageServerRunning(),
+    pid: _process?.pid || null,
+    port: _port,
+    startedAt: _startedAt,
+    restartCount: _restartCount,
+  };
 }
 
 /**

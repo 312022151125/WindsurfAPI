@@ -129,6 +129,43 @@ export async function addAccountByEmail(email, password) {
 }
 
 /**
+ * Set account status (active, disabled, error).
+ */
+export function setAccountStatus(id, status) {
+  const account = accounts.find(a => a.id === id);
+  if (!account) return false;
+  account.status = status;
+  if (status === 'active') account.errorCount = 0;
+  saveAccounts();
+  log.info(`Account ${id} status set to ${status}`);
+  return true;
+}
+
+/**
+ * Reset error count for an account.
+ */
+export function resetAccountErrors(id) {
+  const account = accounts.find(a => a.id === id);
+  if (!account) return false;
+  account.errorCount = 0;
+  account.status = 'active';
+  saveAccounts();
+  log.info(`Account ${id} errors reset`);
+  return true;
+}
+
+/**
+ * Update account label.
+ */
+export function updateAccountLabel(id, label) {
+  const account = accounts.find(a => a.id === id);
+  if (!account) return false;
+  account.email = label;
+  saveAccounts();
+  return true;
+}
+
+/**
  * Remove an account by ID.
  */
 export function removeAccount(id) {

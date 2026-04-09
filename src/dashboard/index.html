@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Windsurf API Dashboard</title>
+<style>
+:root {
+  --bg: #0a0b10; --surface: #12141d; --surface2: #1a1d2b; --border: #252836;
+  --text: #e2e4ea; --muted: #6b7189; --accent: #6366f1; --accent2: #818cf8;
+  --success: #22c55e; --warn: #f59e0b; --error: #ef4444; --info: #3b82f6;
+  --radius: 8px; --font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); min-height: 100vh; display: flex; }
+a { color: var(--accent2); text-decoration: none; }
+button { font-family: var(--font); cursor: pointer; border: none; border-radius: var(--radius); padding: 8px 16px; font-size: 13px; transition: all .15s; }
+input, select { font-family: var(--font); background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 12px; font-size: 13px; outline: none; }
+input:focus, select:focus { border-color: var(--accent); }
+
+/* Layout */
+.sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); display: flex; flex-direction: column; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+.sidebar .logo { padding: 20px; font-size: 16px; font-weight: 700; border-bottom: 1px solid var(--border); }
+.sidebar .logo span { color: var(--accent); }
+.sidebar nav { flex: 1; padding: 12px 0; }
+.sidebar nav a { display: flex; align-items: center; gap: 10px; padding: 10px 20px; color: var(--muted); font-size: 14px; transition: all .15s; border-left: 3px solid transparent; }
+.sidebar nav a:hover { color: var(--text); background: var(--surface2); }
+.sidebar nav a.active { color: var(--accent2); border-left-color: var(--accent); background: rgba(99,102,241,.08); }
+.sidebar .ver { padding: 16px 20px; font-size: 11px; color: var(--muted); border-top: 1px solid var(--border); }
+
+.main { margin-left: 220px; flex: 1; padding: 24px; min-height: 100vh; }
+.panel { display: none; }
+.panel.active { display: block; }
+.panel h2 { font-size: 20px; font-weight: 600; margin-bottom: 20px; }
+
+/* Cards */
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; }
+.card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 8px; }
+.card .value { font-size: 28px; font-weight: 700; }
+.card .sub { font-size: 12px; color: var(--muted); margin-top: 4px; }
+.card.green .value { color: var(--success); }
+.card.blue .value { color: var(--info); }
+.card.yellow .value { color: var(--warn); }
+.card.red .value { color: var(--error); }
+
+/* Tables */
+table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: var(--radius); overflow: hidden; }
+th { text-align: left; padding: 12px 16px; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); background: var(--surface2); border-bottom: 1px solid var(--border); }
+td { padding: 10px 16px; font-size: 13px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.02); }
+
+/* Status badges */
+.badge { display: inline-block; padding: 3px 10px; border-radius: 12px; font-size: 11px; font-weight: 600; }
+.badge.active { background: rgba(34,197,94,.15); color: var(--success); }
+.badge.error { background: rgba(239,68,68,.15); color: var(--error); }
+.badge.disabled { background: rgba(107,113,137,.15); color: var(--muted); }
+.badge.running { background: rgba(34,197,94,.15); color: var(--success); }
+.badge.stopped { background: rgba(239,68,68,.15); color: var(--error); }
+
+/* Buttons */
+.btn { background: var(--accent); color: white; font-weight: 500; }
+.btn:hover { background: var(--accent2); }
+.btn-sm { padding: 4px 10px; font-size: 12px; }
+.btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text); }
+.btn-outline:hover { border-color: var(--accent); color: var(--accent2); }
+.btn-danger { background: var(--error); color: white; }
+.btn-danger:hover { background: #dc2626; }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #16a34a; }
+
+/* Forms */
+.form-row { display: flex; gap: 10px; margin-bottom: 16px; align-items: flex-end; }
+.form-group { display: flex; flex-direction: column; gap: 4px; }
+.form-group label { font-size: 12px; color: var(--muted); }
+.form-group input, .form-group select { min-width: 180px; }
+.form-section { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+.form-section h3 { font-size: 14px; margin-bottom: 16px; color: var(--text); }
+
+/* Logs */
+.log-container { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); height: 500px; overflow-y: auto; font-family: var(--mono); font-size: 12px; line-height: 1.6; }
+.log-entry { padding: 2px 16px; border-bottom: 1px solid rgba(255,255,255,.02); }
+.log-entry:hover { background: rgba(255,255,255,.03); }
+.log-entry .ts { color: var(--muted); margin-right: 8px; }
+.log-entry.debug { color: var(--muted); }
+.log-entry.info .lvl { color: var(--info); }
+.log-entry.warn .lvl { color: var(--warn); }
+.log-entry.error .lvl { color: var(--error); }
+.log-controls { display: flex; gap: 10px; margin-bottom: 12px; align-items: center; }
+.log-controls label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+
+/* Chart */
+.chart { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px; margin-bottom: 20px; }
+.chart h3 { font-size: 14px; margin-bottom: 16px; }
+.bars { display: flex; align-items: flex-end; gap: 3px; height: 120px; }
+.bar-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: flex-end; }
+.bar { width: 100%; min-width: 8px; background: var(--accent); border-radius: 2px 2px 0 0; transition: height .3s; position: relative; }
+.bar.has-errors { background: linear-gradient(to top, var(--error) 0%, var(--accent) 100%); }
+.bar-label { font-size: 9px; color: var(--muted); margin-top: 4px; writing-mode: vertical-lr; transform: rotate(180deg); max-height: 40px; overflow: hidden; }
+
+/* Toast */
+.toast { position: fixed; bottom: 24px; right: 24px; padding: 12px 20px; border-radius: var(--radius); font-size: 13px; z-index: 999; animation: fadeIn .2s; }
+.toast.success { background: var(--success); color: white; }
+.toast.error { background: var(--error); color: white; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Login overlay */
+.login-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: flex; align-items: center; justify-content: center; z-index: 100; }
+.login-box { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 32px; width: 360px; text-align: center; }
+.login-box h3 { margin-bottom: 20px; }
+.login-box input { width: 100%; margin-bottom: 16px; }
+.login-box button { width: 100%; }
+
+/* Responsive */
+@media (max-width: 768px) {
+  .sidebar { width: 60px; }
+  .sidebar .logo span, .sidebar nav a span, .sidebar .ver { display: none; }
+  .sidebar nav a { justify-content: center; padding: 12px; }
+  .main { margin-left: 60px; padding: 16px; }
+  .cards { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="logo"><span>Windsurf</span> API</div>
+  <nav>
+    <a href="#overview" class="active" data-panel="overview">&#9635; <span>Overview</span></a>
+    <a href="#accounts" data-panel="accounts">&#9783; <span>Accounts</span></a>
+    <a href="#proxy" data-panel="proxy">&#8644; <span>Proxy</span></a>
+    <a href="#logs" data-panel="logs">&#9776; <span>Logs</span></a>
+    <a href="#stats" data-panel="stats">&#9670; <span>Stats</span></a>
+    <a href="#bans" data-panel="bans">&#9888; <span>Ban Detection</span></a>
+  </nav>
+  <div class="ver">v1.0.0</div>
+</div>
+
+<div class="main">
+  <!-- Overview -->
+  <section class="panel active" id="p-overview">
+    <h2>Overview</h2>
+    <div class="cards" id="overview-cards"></div>
+    <div class="form-section">
+      <h3>Language Server</h3>
+      <div id="ls-status"></div>
+    </div>
+  </section>
+
+  <!-- Accounts -->
+  <section class="panel" id="p-accounts">
+    <h2>Accounts</h2>
+    <div class="form-section">
+      <h3>Add Account</h3>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Type</label>
+          <select id="acc-type"><option value="api_key">API Key</option><option value="token">Auth Token</option></select>
+        </div>
+        <div class="form-group" style="flex:1">
+          <label>Key / Token</label>
+          <input id="acc-key" placeholder="Paste API key or auth token..." style="width:100%">
+        </div>
+        <div class="form-group">
+          <label>Label</label>
+          <input id="acc-label" placeholder="Optional label">
+        </div>
+        <button class="btn" onclick="App.addAccount()">Add</button>
+      </div>
+    </div>
+    <table id="accounts-table">
+      <thead><tr><th>ID</th><th>Label</th><th>Method</th><th>Status</th><th>Errors</th><th>Last Used</th><th>Key</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- Proxy -->
+  <section class="panel" id="p-proxy">
+    <h2>Proxy Configuration</h2>
+    <div class="form-section">
+      <h3>Global Proxy</h3>
+      <div class="form-row">
+        <div class="form-group"><label>Type</label><select id="proxy-type"><option value="http">HTTP</option><option value="https">HTTPS</option><option value="socks5">SOCKS5</option></select></div>
+        <div class="form-group"><label>Host</label><input id="proxy-host" placeholder="proxy.example.com"></div>
+        <div class="form-group"><label>Port</label><input id="proxy-port" placeholder="8080" type="number" style="width:80px"></div>
+        <div class="form-group"><label>Username</label><input id="proxy-user" placeholder="Optional"></div>
+        <div class="form-group"><label>Password</label><input id="proxy-pass" type="password" placeholder="Optional"></div>
+        <button class="btn" onclick="App.saveGlobalProxy()">Save</button>
+        <button class="btn-outline btn" onclick="App.clearGlobalProxy()">Clear</button>
+      </div>
+      <div id="proxy-current" style="margin-top:12px;font-size:12px;color:var(--muted)"></div>
+    </div>
+    <div class="form-section">
+      <h3>Per-Account Proxy</h3>
+      <table id="proxy-accounts-table">
+        <thead><tr><th>Account</th><th>Proxy</th><th>Actions</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Logs -->
+  <section class="panel" id="p-logs">
+    <h2>Log Viewer</h2>
+    <div class="log-controls">
+      <div class="form-group">
+        <select id="log-level" onchange="App.filterLogs()">
+          <option value="">All levels</option><option value="debug">Debug</option><option value="info">Info</option><option value="warn">Warn</option><option value="error">Error</option>
+        </select>
+      </div>
+      <input id="log-search" placeholder="Search logs..." oninput="App.filterLogs()" style="flex:1">
+      <label><input type="checkbox" id="log-autoscroll" checked> Auto-scroll</label>
+      <button class="btn-outline btn btn-sm" onclick="App.clearLogView()">Clear View</button>
+    </div>
+    <div class="log-container" id="log-container"></div>
+  </section>
+
+  <!-- Stats -->
+  <section class="panel" id="p-stats">
+    <h2>Request Statistics</h2>
+    <div class="cards" id="stats-cards"></div>
+    <div class="chart">
+      <h3>Requests (last 24h)</h3>
+      <div class="bars" id="stats-chart"></div>
+    </div>
+    <table id="model-stats-table">
+      <thead><tr><th>Model</th><th>Requests</th><th>Success</th><th>Errors</th><th>Success Rate</th><th>Avg Time</th></tr></thead>
+      <tbody></tbody>
+    </table>
+    <div style="margin-top:16px"><button class="btn-danger btn btn-sm" onclick="App.resetStats()">Reset All Stats</button></div>
+  </section>
+
+  <!-- Ban Detection -->
+  <section class="panel" id="p-bans">
+    <h2>Ban / Quota Detection</h2>
+    <div class="cards" id="ban-cards"></div>
+    <table id="ban-table">
+      <thead><tr><th>Account</th><th>Status</th><th>Error Count</th><th>Last Used</th><th>Actions</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+</div>
+
+<!-- Login overlay (hidden by default) -->
+<div class="login-overlay" id="login-overlay" style="display:none">
+  <div class="login-box">
+    <h3>Dashboard Login</h3>
+    <input type="password" id="login-password" placeholder="Enter dashboard password" onkeydown="if(event.key==='Enter')App.login()">
+    <button class="btn" onclick="App.login()">Login</button>
+  </div>
+</div>
+
+<script>
+const App = {
+  password: sessionStorage.getItem('dp') || '',
+  sseConn: null,
+  logEntries: [],
+  pollers: {},
+
+  async init() {
+    // Check auth
+    const auth = await this.api('GET', '/auth');
+    if (auth.required && !auth.valid) {
+      document.getElementById('login-overlay').style.display = 'flex';
+      return;
+    }
+    // Nav
+    document.querySelectorAll('.sidebar nav a').forEach(a => {
+      a.onclick = (e) => { e.preventDefault(); this.navigate(a.dataset.panel); };
+    });
+    // Hash navigation
+    const hash = location.hash.slice(1);
+    if (hash) this.navigate(hash);
+    else this.loadOverview();
+  },
+
+  login() {
+    this.password = document.getElementById('login-password').value;
+    sessionStorage.setItem('dp', this.password);
+    document.getElementById('login-overlay').style.display = 'none';
+    this.init();
+  },
+
+  navigate(panel) {
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.sidebar nav a').forEach(a => a.classList.remove('active'));
+    const el = document.getElementById('p-' + panel);
+    const nav = document.querySelector(`[data-panel="${panel}"]`);
+    if (el) el.classList.add('active');
+    if (nav) nav.classList.add('active');
+
+    // Stop all pollers & SSE
+    Object.values(this.pollers).forEach(clearInterval);
+    this.pollers = {};
+    if (this.sseConn) { this.sseConn.close(); this.sseConn = null; }
+
+    // Load panel
+    const loaders = { overview: 'loadOverview', accounts: 'loadAccounts', proxy: 'loadProxy', logs: 'loadLogs', stats: 'loadStats', bans: 'loadBans' };
+    if (loaders[panel]) this[loaders[panel]]();
+  },
+
+  async api(method, path, body) {
+    const opts = { method, headers: { 'Content-Type': 'application/json' } };
+    if (this.password) opts.headers['X-Dashboard-Password'] = this.password;
+    if (body) opts.body = JSON.stringify(body);
+    try {
+      const r = await fetch('/dashboard/api' + path, opts);
+      const data = await r.json();
+      if (r.status === 401) {
+        document.getElementById('login-overlay').style.display = 'flex';
+        return {};
+      }
+      return data;
+    } catch (e) { this.toast(e.message, 'error'); return {}; }
+  },
+
+  toast(msg, type = 'success') {
+    const t = document.createElement('div');
+    t.className = 'toast ' + type;
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 3000);
+  },
+
+  // ─── Overview ────────────────────────────────────────
+  async loadOverview() {
+    const d = await this.api('GET', '/overview');
+    const uptime = d.uptime ? this.fmtDuration(d.uptime) : '-';
+    document.getElementById('overview-cards').innerHTML = `
+      <div class="card green"><div class="label">Active Accounts</div><div class="value">${d.accounts?.active || 0}</div><div class="sub">${d.accounts?.total || 0} total, ${d.accounts?.error || 0} errored</div></div>
+      <div class="card blue"><div class="label">Total Requests</div><div class="value">${d.totalRequests || 0}</div><div class="sub">${d.successRate || 0}% success rate</div></div>
+      <div class="card"><div class="label">Uptime</div><div class="value" style="font-size:20px">${uptime}</div></div>
+      <div class="card ${d.langServer?.running ? 'green' : 'red'}"><div class="label">Language Server</div><div class="value" style="font-size:16px">${d.langServer?.running ? 'Running' : 'Stopped'}</div><div class="sub">Port ${d.langServer?.port || '-'}</div></div>
+    `;
+    document.getElementById('ls-status').innerHTML = `
+      <span class="badge ${d.langServer?.running ? 'running' : 'stopped'}">${d.langServer?.running ? 'Running' : 'Stopped'}</span>
+      &nbsp; PID: ${d.langServer?.pid || '-'} &nbsp; Port: ${d.langServer?.port || '-'} &nbsp; Restarts: ${d.langServer?.restartCount || 0}
+      <button class="btn-outline btn btn-sm" style="margin-left:16px" onclick="App.restartLs()">Restart LS</button>
+    `;
+    this.pollers.overview = setInterval(() => this.loadOverview(), 10000);
+  },
+
+  async restartLs() {
+    if (!confirm('Restart language server? Active requests will fail.')) return;
+    await this.api('POST', '/langserver/restart', { confirm: true });
+    this.toast('Language server restarting...');
+  },
+
+  // ─── Accounts ────────────────────────────────────────
+  async loadAccounts() {
+    const d = await this.api('GET', '/accounts');
+    const tbody = document.querySelector('#accounts-table tbody');
+    tbody.innerHTML = (d.accounts || []).map(a => `
+      <tr>
+        <td><code>${a.id}</code></td>
+        <td>${a.email}</td>
+        <td>${a.method}</td>
+        <td><span class="badge ${a.status}">${a.status}</span></td>
+        <td>${a.errorCount}</td>
+        <td>${a.lastUsed ? new Date(a.lastUsed).toLocaleString() : '-'}</td>
+        <td><code>${a.keyPrefix}</code></td>
+        <td>
+          ${a.status === 'active' ? `<button class="btn-outline btn btn-sm" onclick="App.toggleAccount('${a.id}','disabled')">Disable</button>` : `<button class="btn-success btn btn-sm" onclick="App.toggleAccount('${a.id}','active')">Enable</button>`}
+          <button class="btn-outline btn btn-sm" onclick="App.resetErrors('${a.id}')">Reset</button>
+          <button class="btn-danger btn btn-sm" onclick="App.deleteAccount('${a.id}')">Delete</button>
+        </td>
+      </tr>
+    `).join('');
+  },
+
+  async addAccount() {
+    const type = document.getElementById('acc-type').value;
+    const key = document.getElementById('acc-key').value.trim();
+    const label = document.getElementById('acc-label').value.trim();
+    if (!key) return this.toast('Enter a key or token', 'error');
+    const body = type === 'api_key' ? { api_key: key, label } : { token: key, label };
+    const r = await this.api('POST', '/accounts', body);
+    if (r.success) { this.toast('Account added'); document.getElementById('acc-key').value = ''; this.loadAccounts(); }
+    else this.toast(r.error || 'Failed', 'error');
+  },
+
+  async toggleAccount(id, status) {
+    await this.api('PATCH', `/accounts/${id}`, { status });
+    this.loadAccounts();
+  },
+
+  async resetErrors(id) {
+    await this.api('PATCH', `/accounts/${id}`, { resetErrors: true });
+    this.loadAccounts();
+    this.toast('Errors reset');
+  },
+
+  async deleteAccount(id) {
+    if (!confirm('Remove this account?')) return;
+    await this.api('DELETE', `/accounts/${id}`);
+    this.loadAccounts();
+    this.toast('Account removed');
+  },
+
+  // ─── Proxy ───────────────────────────────────────────
+  async loadProxy() {
+    const d = await this.api('GET', '/proxy');
+    if (d.global) {
+      document.getElementById('proxy-type').value = d.global.type || 'http';
+      document.getElementById('proxy-host').value = d.global.host || '';
+      document.getElementById('proxy-port').value = d.global.port || '';
+      document.getElementById('proxy-user').value = d.global.username || '';
+      document.getElementById('proxy-pass').value = d.global.password || '';
+      document.getElementById('proxy-current').textContent = `Current: ${d.global.type}://${d.global.host}:${d.global.port}`;
+    } else {
+      document.getElementById('proxy-current').textContent = 'No global proxy configured';
+    }
+    // Per-account
+    const accts = await this.api('GET', '/accounts');
+    const tbody = document.querySelector('#proxy-accounts-table tbody');
+    const pa = d.perAccount || {};
+    tbody.innerHTML = (accts.accounts || []).map(a => {
+      const p = pa[a.id];
+      return `<tr>
+        <td>${a.email} (${a.id})</td>
+        <td>${p ? `${p.type}://${p.host}:${p.port}` : '<span style="color:var(--muted)">None (uses global)</span>'}</td>
+        <td>${p ? `<button class="btn-danger btn btn-sm" onclick="App.clearAccountProxy('${a.id}')">Clear</button>` : ''}</td>
+      </tr>`;
+    }).join('');
+  },
+
+  async saveGlobalProxy() {
+    const cfg = {
+      type: document.getElementById('proxy-type').value,
+      host: document.getElementById('proxy-host').value.trim(),
+      port: document.getElementById('proxy-port').value,
+      username: document.getElementById('proxy-user').value,
+      password: document.getElementById('proxy-pass').value,
+    };
+    if (!cfg.host) return this.toast('Enter proxy host', 'error');
+    await this.api('PUT', '/proxy/global', cfg);
+    this.toast('Global proxy saved');
+    this.loadProxy();
+  },
+
+  async clearGlobalProxy() {
+    await this.api('DELETE', '/proxy/global');
+    ['proxy-host','proxy-port','proxy-user','proxy-pass'].forEach(id => document.getElementById(id).value = '');
+    this.toast('Global proxy cleared');
+    this.loadProxy();
+  },
+
+  async clearAccountProxy(id) {
+    await this.api('DELETE', `/proxy/accounts/${id}`);
+    this.toast('Account proxy cleared');
+    this.loadProxy();
+  },
+
+  // ─── Logs ────────────────────────────────────────────
+  loadLogs() {
+    this.logEntries = [];
+    document.getElementById('log-container').innerHTML = '';
+    // SSE connection
+    const url = '/dashboard/api/logs/stream';
+    this.sseConn = new EventSource(url);
+    this.sseConn.onmessage = (e) => {
+      try {
+        const entry = JSON.parse(e.data);
+        this.logEntries.push(entry);
+        if (this.logEntries.length > 1000) this.logEntries.shift();
+        this.renderLogEntry(entry);
+      } catch {}
+    };
+    this.sseConn.onerror = () => {};
+  },
+
+  renderLogEntry(entry) {
+    const container = document.getElementById('log-container');
+    const levelFilter = document.getElementById('log-level').value;
+    const search = document.getElementById('log-search').value.toLowerCase();
+    if (levelFilter && entry.level !== levelFilter) return;
+    if (search && !entry.msg.toLowerCase().includes(search)) return;
+
+    const div = document.createElement('div');
+    div.className = 'log-entry ' + entry.level;
+    const ts = new Date(entry.ts).toLocaleTimeString();
+    div.innerHTML = `<span class="ts">${ts}</span><span class="lvl">[${entry.level.toUpperCase()}]</span> ${this.escHtml(entry.msg)}`;
+    container.appendChild(div);
+
+    if (document.getElementById('log-autoscroll').checked) {
+      container.scrollTop = container.scrollHeight;
+    }
+  },
+
+  filterLogs() {
+    const container = document.getElementById('log-container');
+    container.innerHTML = '';
+    this.logEntries.forEach(e => this.renderLogEntry(e));
+  },
+
+  clearLogView() {
+    this.logEntries = [];
+    document.getElementById('log-container').innerHTML = '';
+  },
+
+  // ─── Stats ───────────────────────────────────────────
+  async loadStats() {
+    const d = await this.api('GET', '/stats');
+    document.getElementById('stats-cards').innerHTML = `
+      <div class="card blue"><div class="label">Total Requests</div><div class="value">${d.totalRequests || 0}</div></div>
+      <div class="card green"><div class="label">Success</div><div class="value">${d.successCount || 0}</div></div>
+      <div class="card red"><div class="label">Errors</div><div class="value">${d.errorCount || 0}</div></div>
+      <div class="card"><div class="label">Success Rate</div><div class="value">${d.totalRequests > 0 ? ((d.successCount/d.totalRequests)*100).toFixed(1) : 0}%</div></div>
+    `;
+    // Model table
+    const models = d.modelCounts || {};
+    const tbody = document.querySelector('#model-stats-table tbody');
+    tbody.innerHTML = Object.entries(models).map(([m, s]) => `
+      <tr>
+        <td><code>${m}</code></td>
+        <td>${s.requests}</td>
+        <td>${s.success}</td>
+        <td>${s.errors}</td>
+        <td>${s.requests > 0 ? ((s.success/s.requests)*100).toFixed(1) : 0}%</td>
+        <td>${s.requests > 0 ? Math.round(s.totalMs/s.requests) : 0}ms</td>
+      </tr>
+    `).join('') || '<tr><td colspan="6" style="text-align:center;color:var(--muted)">No requests yet</td></tr>';
+
+    // Chart
+    const buckets = (d.hourlyBuckets || []).slice(-24);
+    const maxReq = Math.max(1, ...buckets.map(b => b.requests));
+    document.getElementById('stats-chart').innerHTML = buckets.map(b => {
+      const h = Math.max(2, (b.requests / maxReq) * 100);
+      const hasErr = b.errors > 0;
+      const label = new Date(b.hour).getHours() + ':00';
+      return `<div class="bar-wrap"><div class="bar ${hasErr ? 'has-errors' : ''}" style="height:${h}%" title="${b.requests} req, ${b.errors} err"></div><div class="bar-label">${label}</div></div>`;
+    }).join('') || '<div style="color:var(--muted);text-align:center;width:100%;padding:40px">No data yet</div>';
+
+    this.pollers.stats = setInterval(() => this.loadStats(), 15000);
+  },
+
+  async resetStats() {
+    if (!confirm('Reset all statistics?')) return;
+    await this.api('DELETE', '/stats');
+    this.toast('Stats reset');
+    this.loadStats();
+  },
+
+  // ─── Ban Detection ───────────────────────────────────
+  async loadBans() {
+    const d = await this.api('GET', '/accounts');
+    const accounts = d.accounts || [];
+    const errored = accounts.filter(a => a.status === 'error' || a.errorCount > 0);
+    document.getElementById('ban-cards').innerHTML = `
+      <div class="card ${errored.length > 0 ? 'red' : 'green'}"><div class="label">Flagged Accounts</div><div class="value">${errored.length}</div><div class="sub">of ${accounts.length} total</div></div>
+      <div class="card"><div class="label">Total Errored</div><div class="value">${accounts.filter(a => a.status === 'error').length}</div></div>
+    `;
+    const tbody = document.querySelector('#ban-table tbody');
+    tbody.innerHTML = accounts.map(a => {
+      const flagged = a.status === 'error' || a.errorCount > 0;
+      return `<tr style="${flagged ? 'background:rgba(239,68,68,.05)' : ''}">
+        <td>${a.email} <code>(${a.id})</code></td>
+        <td><span class="badge ${a.status}">${a.status}</span></td>
+        <td style="color:${a.errorCount > 0 ? 'var(--error)' : 'inherit'}">${a.errorCount}</td>
+        <td>${a.lastUsed ? new Date(a.lastUsed).toLocaleString() : '-'}</td>
+        <td>
+          ${a.status === 'error' ? `<button class="btn-success btn btn-sm" onclick="App.toggleAccount('${a.id}','active');App.loadBans()">Re-enable</button>` : ''}
+          ${a.errorCount > 0 ? `<button class="btn-outline btn btn-sm" onclick="App.resetErrors('${a.id}');App.loadBans()">Reset Errors</button>` : ''}
+        </td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">No accounts</td></tr>';
+
+    this.pollers.bans = setInterval(() => this.loadBans(), 30000);
+  },
+
+  // ─── Helpers ─────────────────────────────────────────
+  fmtDuration(secs) {
+    const d = Math.floor(secs / 86400);
+    const h = Math.floor((secs % 86400) / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    if (d > 0) return `${d}d ${h}h ${m}m`;
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m ${Math.floor(secs % 60)}s`;
+  },
+
+  escHtml(s) {
+    return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  },
+};
+
+window.addEventListener('DOMContentLoaded', () => App.init());
+</script>
+</body>
+</html>

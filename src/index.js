@@ -1,3 +1,5 @@
+// Logger must be imported first to patch log functions before other modules use them
+import './dashboard/logger.js';
 import { initAuth, isAuthenticated } from './auth.js';
 import { startLanguageServer, waitForReady, isLanguageServerRunning, stopLanguageServer } from './langserver.js';
 import { startServer } from './server.js';

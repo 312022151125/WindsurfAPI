@@ -11,13 +11,19 @@
  */
 
 import http from 'http';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import {
   validateApiKey, isAuthenticated, getAccountList, getAccountCount,
   addAccountByEmail, addAccountByToken, addAccountByKey, removeAccount,
 } from './auth.js';
 import { handleChatCompletions } from './handlers/chat.js';
 import { handleModels } from './handlers/models.js';
+import { handleDashboardApi } from './dashboard/api.js';
 import { config, log } from './config.js';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -52,6 +58,26 @@ async function route(req, res) {
   if (path === '/health') {
     const counts = getAccountCount();
     return json(res, 200, { status: 'ok', accounts: counts });
+  }
+
+  // ─── Dashboard ─────────────────────────────────────────
+  if (path === '/dashboard' || path === '/dashboard/') {
+    try {
+      const html = readFileSync(join(__dirname, 'dashboard', 'index.html'));
+      res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
+      return res.end(html);
+    } catch {
+      return json(res, 500, { error: 'Dashboard not found' });
+    }
+  }
+
+  if (path.startsWith('/dashboard/api/')) {
+    let body = {};
+    if (method === 'POST' || method === 'PUT' || method === 'PATCH') {
+      try { body = JSON.parse(await readBody(req)); } catch {}
+    }
+    const subpath = path.slice('/dashboard/api'.length);
+    return handleDashboardApi(method, subpath, body, req, res);
   }
 
   // ─── Auth management (no API key required) ─────────────

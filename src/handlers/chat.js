@@ -9,6 +9,7 @@ import { getApiKey, reportError, reportSuccess } from '../auth.js';
 import { resolveModel, getModelInfo } from '../models.js';
 import { getLsPort, getCsrfToken } from '../langserver.js';
 import { config, log } from '../config.js';
+import { recordRequest } from '../dashboard/stats.js';
 
 function genId() {
   return 'chatcmpl-' + randomUUID().replace(/-/g, '').slice(0, 29);
@@ -54,6 +55,7 @@ export async function handleChatCompletions(body) {
 }
 
 async function nonStreamResponse(client, id, created, model, messages, modelEnum, modelUid, useCascade, apiKey) {
+  const startTime = Date.now();
   try {
     let allText = '';
     let allThinking = '';
@@ -81,6 +83,7 @@ async function nonStreamResponse(client, id, created, model, messages, modelEnum
     }
 
     reportSuccess(apiKey);
+    recordRequest(model, true, Date.now() - startTime, apiKey);
 
     const message = { role: 'assistant', content: allText || null };
     if (allThinking) message.reasoning_content = allThinking;
@@ -95,6 +98,7 @@ async function nonStreamResponse(client, id, created, model, messages, modelEnum
     };
   } catch (err) {
     if (!err.isModelError) reportError(apiKey);
+    recordRequest(model, false, Date.now() - startTime, apiKey);
     log.error('Chat error:', err.message);
     return {
       status: err.isModelError ? 403 : 502,
