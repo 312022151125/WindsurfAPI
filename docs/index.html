@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Windsurf API - OpenAI-compatible Proxy for Windsurf</title>
+<meta name="description" content="Run Windsurf AI models headlessly through standard OpenAI API endpoints. 59 models, multi-account pool, admin dashboard, zero dependencies.">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#0a0b10;--surface:#12141d;--surface2:#1a1d2b;--border:#252836;
+  --text:#e2e4ea;--muted:#6b7189;--accent:#6366f1;--accent2:#818cf8;
+  --success:#22c55e;--warn:#f59e0b;--error:#ef4444;
+  --font:'Segoe UI',system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono','Fira Code','Cascadia Code',monospace;
+}
+body{background:var(--bg);color:var(--text);font-family:var(--font);line-height:1.6;overflow-x:hidden}
+a{color:var(--accent2);text-decoration:none}
+a:hover{text-decoration:underline}
+
+.hero{
+  min-height:80vh;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:4rem 2rem;
+  background:radial-gradient(ellipse at 50% 0%,rgba(99,102,241,.15) 0%,transparent 60%);
+}
+.hero h1{font-size:3.5rem;font-weight:800;letter-spacing:-.03em;margin-bottom:.5rem}
+.hero h1 span{background:linear-gradient(135deg,var(--accent),var(--accent2),#a78bfa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero .subtitle{font-size:1.25rem;color:var(--muted);max-width:600px;margin-bottom:2.5rem}
+.hero .badges{display:flex;gap:.75rem;flex-wrap:wrap;justify-content:center;margin-bottom:2rem}
+.badge{
+  display:inline-flex;align-items:center;gap:.4rem;padding:.35rem .85rem;
+  background:var(--surface);border:1px solid var(--border);border-radius:20px;
+  font-size:.85rem;color:var(--text);white-space:nowrap;
+}
+.badge .dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.badge .dot.green{background:var(--success)}.badge .dot.blue{background:#3b82f6}
+.badge .dot.purple{background:var(--accent)}
+
+.btn-group{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center}
+.btn{
+  display:inline-flex;align-items:center;gap:.5rem;padding:.75rem 1.75rem;
+  border-radius:8px;font-size:1rem;font-weight:600;cursor:pointer;
+  border:none;transition:all .2s;
+}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent2);text-decoration:none}
+.btn-outline{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-outline:hover{border-color:var(--accent);text-decoration:none}
+
+.container{max-width:1100px;margin:0 auto;padding:0 2rem}
+
+section{padding:5rem 0}
+section h2{font-size:2rem;font-weight:700;margin-bottom:.5rem;text-align:center}
+section .section-sub{text-align:center;color:var(--muted);margin-bottom:3rem;font-size:1.05rem}
+
+.features{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.5rem}
+.feature{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:2rem;transition:border-color .2s;
+}
+.feature:hover{border-color:var(--accent)}
+.feature .icon{font-size:1.5rem;margin-bottom:.75rem;display:block}
+.feature h3{font-size:1.15rem;font-weight:600;margin-bottom:.5rem}
+.feature p{color:var(--muted);font-size:.95rem}
+
+.code-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:1.5rem}
+.code-header{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:.75rem 1.25rem;background:var(--surface2);border-bottom:1px solid var(--border);
+}
+.code-header span{font-size:.85rem;color:var(--muted);font-family:var(--mono)}
+.code-header button{
+  background:var(--surface);border:1px solid var(--border);color:var(--muted);
+  padding:.25rem .75rem;border-radius:4px;cursor:pointer;font-size:.8rem;
+}
+.code-header button:hover{color:var(--text);border-color:var(--accent)}
+pre{padding:1.25rem;overflow-x:auto;font-family:var(--mono);font-size:.9rem;line-height:1.7}
+pre code{color:var(--text)}
+.token-comment{color:#6b7189}.token-string{color:#22c55e}.token-key{color:var(--accent2)}
+.token-cmd{color:var(--warn)}.token-url{color:#3b82f6}
+
+.models-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1rem}
+.model-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:1.5rem;
+}
+.model-card h4{font-size:1rem;font-weight:600;margin-bottom:.5rem;display:flex;align-items:center;gap:.5rem}
+.model-card .provider{font-size:.75rem;padding:.15rem .5rem;border-radius:4px;font-weight:500}
+.model-card .provider.anthropic{background:rgba(99,102,241,.15);color:var(--accent2)}
+.model-card .provider.openai{background:rgba(34,197,94,.15);color:var(--success)}
+.model-card .provider.google{background:rgba(59,130,246,.15);color:#3b82f6}
+.model-card .provider.other{background:rgba(245,158,11,.15);color:var(--warn)}
+.model-card ul{list-style:none;margin-top:.5rem}
+.model-card li{font-size:.85rem;color:var(--muted);padding:.15rem 0;font-family:var(--mono)}
+.model-card li::before{content:">";margin-right:.5rem;color:var(--border)}
+
+.dashboard-preview{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:2rem;text-align:center;
+}
+.dashboard-preview .panels{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1rem;margin-top:1.5rem}
+.panel-tag{
+  background:var(--surface2);border:1px solid var(--border);border-radius:8px;
+  padding:1rem;text-align:center;
+}
+.panel-tag .name{font-weight:600;font-size:.95rem;margin-bottom:.25rem}
+.panel-tag .desc{font-size:.8rem;color:var(--muted)}
+
+.arch{
+  display:flex;flex-direction:column;align-items:center;gap:0;
+  font-family:var(--mono);font-size:.9rem;
+}
+.arch-box{
+  background:var(--surface);border:1px solid var(--border);border-radius:8px;
+  padding:.75rem 2rem;text-align:center;min-width:300px;
+}
+.arch-box.highlight{border-color:var(--accent);background:rgba(99,102,241,.08)}
+.arch-arrow{color:var(--border);font-size:1.2rem;line-height:1.5}
+
+.footer{
+  border-top:1px solid var(--border);padding:3rem 2rem;text-align:center;
+  color:var(--muted);font-size:.9rem;
+}
+.footer a{color:var(--accent2)}
+
+@media(max-width:768px){
+  .hero h1{font-size:2.2rem}
+  .hero .subtitle{font-size:1rem}
+  .features{grid-template-columns:1fr}
+  .models-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<section class="hero">
+  <h1><span>Windsurf API</span></h1>
+  <p class="subtitle">
+    OpenAI-compatible API proxy for Windsurf. Run 59 AI models headlessly on your server through standard endpoints.
+  </p>
+  <div class="badges">
+    <span class="badge"><span class="dot green"></span> Zero Dependencies</span>
+    <span class="badge"><span class="dot blue"></span> 59 Models</span>
+    <span class="badge"><span class="dot purple"></span> OpenAI Compatible</span>
+  </div>
+  <div class="btn-group">
+    <a href="https://github.com/dwgx/WindsurfAPI" class="btn btn-primary">GitHub Repository</a>
+    <a href="#quickstart" class="btn btn-outline">Quick Start</a>
+  </div>
+</section>
+
+<section id="features">
+  <div class="container">
+    <h2>Features</h2>
+    <p class="section-sub">Everything you need to run Windsurf models as an API service</p>
+    <div class="features">
+      <div class="feature">
+        <span class="icon">~</span>
+        <h3>OpenAI-Compatible API</h3>
+        <p>Drop-in replacement for /v1/chat/completions and /v1/models. Works with any OpenAI SDK or client.</p>
+      </div>
+      <div class="feature">
+        <span class="icon">#</span>
+        <h3>59 AI Models</h3>
+        <p>Claude, GPT, Gemini, DeepSeek, Grok, Qwen, Kimi, and Windsurf SWE models. All accessible through one API.</p>
+      </div>
+      <div class="feature">
+        <span class="icon">@</span>
+        <h3>Multi-Account Pool</h3>
+        <p>Round-robin load balancing across multiple Windsurf accounts with automatic error tracking and failover.</p>
+      </div>
+      <div class="feature">
+        <span class="icon">$</span>
+        <h3>Admin Dashboard</h3>
+        <p>Web UI for account management, proxy configuration, real-time log streaming, request statistics, and ban detection.</p>
+      </div>
+      <div class="feature">
+        <span class="icon">%</span>
+        <h3>Streaming Support</h3>
+        <p>Full SSE streaming compatible with OpenAI's format. Both streaming and non-streaming modes supported.</p>
+      </div>
+      <div class="feature">
+        <span class="icon">&</span>
+        <h3>Zero Dependencies</h3>
+        <p>Pure Node.js implementation using only built-in modules. No npm install required.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="quickstart" style="background:var(--surface2)">
+  <div class="container">
+    <h2>Quick Start</h2>
+    <p class="section-sub">Get up and running in minutes</p>
+
+    <div class="code-section">
+      <div class="code-header"><span>bash</span></div>
+      <pre><code><span class="token-comment"># Clone the repository</span>
+<span class="token-cmd">git clone</span> https://github.com/dwgx/WindsurfAPI.git
+<span class="token-cmd">cd</span> WindsurfAPI
+
+<span class="token-comment"># Place the language server binary</span>
+<span class="token-cmd">mkdir -p</span> /opt/windsurf
+<span class="token-cmd">cp</span> language_server_linux_x64 /opt/windsurf/
+<span class="token-cmd">chmod</span> +x /opt/windsurf/language_server_linux_x64
+
+<span class="token-comment"># Start the server</span>
+<span class="token-cmd">node</span> src/index.js</code></pre>
+    </div>
+
+    <div class="code-section">
+      <div class="code-header"><span>Usage Example</span></div>
+      <pre><code><span class="token-cmd">curl</span> <span class="token-url">http://localhost:3003/v1/chat/completions</span> \
+  -H <span class="token-string">"Content-Type: application/json"</span> \
+  -d <span class="token-string">'{
+    "model": "gpt-4o-mini",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": false
+  }'</span></code></pre>
+    </div>
+
+    <div class="code-section">
+      <div class="code-header"><span>Add Account</span></div>
+      <pre><code><span class="token-cmd">curl</span> -X POST <span class="token-url">http://localhost:3003/auth/login</span> \
+  -H <span class="token-string">"Content-Type: application/json"</span> \
+  -d <span class="token-string">'{"token": "your-windsurf-token"}'</span></code></pre>
+    </div>
+  </div>
+</section>
+
+<section id="models">
+  <div class="container">
+    <h2>Supported Models</h2>
+    <p class="section-sub">Access 59 models from 8 providers through a single API</p>
+    <div class="models-grid">
+      <div class="model-card">
+        <h4>Claude <span class="provider anthropic">Anthropic</span></h4>
+        <ul>
+          <li>claude-3.5/3.7-sonnet</li>
+          <li>claude-4-sonnet/opus</li>
+          <li>claude-4.1-opus</li>
+          <li>claude-4.5-sonnet/haiku/opus</li>
+          <li>claude-sonnet/opus-4.6</li>
+          <li>claude-code</li>
+        </ul>
+      </div>
+      <div class="model-card">
+        <h4>GPT <span class="provider openai">OpenAI</span></h4>
+        <ul>
+          <li>gpt-4o / 4o-mini</li>
+          <li>gpt-4.1 / mini / nano</li>
+          <li>gpt-5 / 5-mini</li>
+          <li>gpt-5.2 / 5.3 / 5.4</li>
+          <li>o3 / o3-pro / o4-mini</li>
+        </ul>
+      </div>
+      <div class="model-card">
+        <h4>Gemini <span class="provider google">Google</span></h4>
+        <ul>
+          <li>gemini-2.5-pro / flash</li>
+          <li>gemini-3.0-pro / flash</li>
+          <li>gemini-3.1-pro</li>
+        </ul>
+      </div>
+      <div class="model-card">
+        <h4>Others <span class="provider other">Multi</span></h4>
+        <ul>
+          <li>deepseek-v3 / r1</li>
+          <li>grok-3 / grok-3-mini</li>
+          <li>qwen-3 / qwen-3-coder</li>
+          <li>kimi-k2 / k2.5</li>
+          <li>swe-1.5 / 1.6</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="dashboard" style="background:var(--surface2)">
+  <div class="container">
+    <h2>Admin Dashboard</h2>
+    <p class="section-sub">Full-featured web UI at /dashboard</p>
+    <div class="dashboard-preview">
+      <div class="panels">
+        <div class="panel-tag">
+          <div class="name">Overview</div>
+          <div class="desc">Server uptime, pool status, success rate</div>
+        </div>
+        <div class="panel-tag">
+          <div class="name">Accounts</div>
+          <div class="desc">Add, remove, disable, label accounts</div>
+        </div>
+        <div class="panel-tag">
+          <div class="name">Proxy</div>
+          <div class="desc">Global & per-account proxy config</div>
+        </div>
+        <div class="panel-tag">
+          <div class="name">Logs</div>
+          <div class="desc">Real-time SSE streaming, filtering</div>
+        </div>
+        <div class="panel-tag">
+          <div class="name">Stats</div>
+          <div class="desc">Per-model/account metrics & charts</div>
+        </div>
+        <div class="panel-tag">
+          <div class="name">Ban Detection</div>
+          <div class="desc">Error patterns & account health</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="architecture">
+  <div class="container">
+    <h2>Architecture</h2>
+    <p class="section-sub">Lightweight proxy chain with no external dependencies</p>
+    <div class="arch">
+      <div class="arch-box">Client (OpenAI SDK / curl)</div>
+      <div class="arch-arrow">|</div>
+      <div class="arch-box highlight">WindsurfAPI (Node.js, port 3003)</div>
+      <div class="arch-arrow">|</div>
+      <div class="arch-box">Language Server (gRPC, port 42100)</div>
+      <div class="arch-arrow">|</div>
+      <div class="arch-box">Windsurf Backend</div>
+    </div>
+  </div>
+</section>
+
+<footer class="footer">
+  <p>Windsurf API &mdash; <a href="https://github.com/dwgx/WindsurfAPI">GitHub</a> &mdash; MIT License</p>
+</footer>
+
+</body>
+</html>
