@@ -64,7 +64,7 @@ describe('MODEL_TIER_ACCESS', () => {
 
   it('free tier is a small subset', () => {
     assert.ok(MODEL_TIER_ACCESS.free.length <= 5);
-    assert.ok(MODEL_TIER_ACCESS.free.includes('gpt-4o-mini'));
+    assert.ok(MODEL_TIER_ACCESS.free.includes('gemini-2.5-flash'));
   });
 
   it('expired tier is empty', () => {
