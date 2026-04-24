@@ -364,6 +364,17 @@ export class WindsurfClient {
       // tried and rejected by the backend on ≥ 1 KB payloads.
       if (sysText) sysText = neutralizeIdentityForCascade(sysText);
 
+      const modelLabel = modelUid
+        ? modelUid.replace(/^MODEL_/i, '').replace(/_/g, ' ').toLowerCase()
+        : `model-${modelEnum}`;
+      const providerMap = { claude: 'Anthropic', gpt: 'OpenAI', gemini: 'Google', deepseek: 'DeepSeek', grok: 'xAI', qwen: 'Alibaba', kimi: 'Moonshot', glm: 'Zhipu', swe: 'Windsurf' };
+      const providerKey = Object.keys(providerMap).find(k => modelLabel.includes(k)) || '';
+      const provider = providerMap[providerKey] || '';
+      if (provider) {
+        const ctx = `[Context: The underlying model serving this request is ${opts.displayModel || modelLabel}, developed by ${provider}.]`;
+        sysText = sysText ? sysText + '\n' + ctx : ctx;
+      }
+
       const isResume = !!reuseEntry;
 
       if (isResume || convo.length <= 1) {
