@@ -1,4 +1,4 @@
-FROM node:20-bookworm-slim
+FROM node:20-alpine
 
 ENV NODE_ENV=production \
     PORT=3003 \
@@ -8,9 +8,7 @@ ENV NODE_ENV=production \
 
 WORKDIR /app
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends bash curl ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache bash curl ca-certificates
 
 COPY package.json ./
 COPY src ./src
